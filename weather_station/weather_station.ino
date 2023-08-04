@@ -27,9 +27,9 @@ TinyGsm modem(Serial2);
 
 TinyGsmClient client(modem);
 
-const char server[] = "mspo-development.s3.ap-south-1.amazonaws.com";
+const char server[] = "Server name";
 const int port = 80;
-const char resource[] = "/solimet/solimet_proplus_esp32_v4.ino.esp32da.bin"; //bin file
+const char resource[] = "File name"; //bin file
 
 uint32_t knownFileSize = 2000; // In case server does not send it
 
@@ -68,14 +68,6 @@ byte minutes_10m; //Keeps track of where we are in wind gust/dir over last 10 mi
 long lastWindCheck = 0;
 volatile long lastWindIRQ = 0;
 volatile byte windClicks = 0;
-
-//We need to keep track of the following variables:
-//Wind speed/dir each update (no storage)
-//Wind gust/dir over the day (no storage)
-//Wind speed/dir, avg over 2 minutes (store 1 per second)
-//Wind gust/dir over last 10 minutes (store 1 per minute)
-//Rain over the past hour (store 1 per minute)
-//Total rain over date (store one per day)
 
 byte windspdavg[120]; //120 bytes to keep track of 2 minute average
 
@@ -205,11 +197,6 @@ void setup()
     attachInterrupt(digitalPinToInterrupt(RAIN), rainIRQ, FALLING);
     //delay(100);
     
-    // turn on interrupts
-    //interrupts();
-
-    // GPRS baud rate
-    //Serial2.begin(9600);
     Serial2.begin(115200, SERIAL_8N1, 16, 17); 
     
     TaskHandle_t taskHandle;
@@ -264,8 +251,7 @@ void loop()
 
         lastSecond += 1000;
         sentdata += 1;
-//      Serial.print("loop: ");
-//      Serial.println(sentdata);
+
         //Take a speed and direction reading every second for 2 minute average
         if(++seconds_2m > 60) seconds_2m = 0;
         //Calc the wind speed and direction every second for 120 second to get 2 minute average
@@ -328,15 +314,13 @@ void loop()
             dailyrainin = rainin; //So avoid the rain data lost during the delay
         }
 
-//        if((sentdata == 90) or (sentdata == 1)){
-//           soilData();
-//        }
+       if((sentdata == 90) or (sentdata == 1)){
+          soilData();
+       }
 
         
         //OTA updates
         if((timeStamp>"15:25") and (timeStamp<"15:30")) {    //Time range to run OTA update:
-//         Serial.print("time inside loop: ");
-//         Serial.print(timeStamp);    
               if (!SPIFFS.begin(true))
               {
                    Serial.println("SPIFFS Mount Failed");
@@ -363,19 +347,10 @@ void loop()
                 delay(1000);
           
         }
-               
-        //ESP goes to sleep for every 10 minutes after sending data.
-//        esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-//        Serial.println("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) +
-//        " Seconds");
-//        Serial.println("Going to sleep now");
-//        Serial.flush(); 
-//        esp_deep_sleep_start();
     }
-  //delay(60000);
 }
 
-void asyncTask(void* parameter) {
+void asyncTask(void* parameter) {    //function for receiving images
   for (;;) {
     
     while (Serial1.available()){
@@ -389,7 +364,6 @@ void asyncTask(void* parameter) {
         }
     }
     
-   // vTaskDelay(1000 / portTICK_PERIOD_MS);  // Delay for 1 second
   }
 }
 
@@ -398,15 +372,6 @@ void calcWeather()
 {
     //Calc winddir
     winddir = get_wind_direction();
-//    Serial.print("WInd Dir: ");
-//    Serial.println(winddir);
-
-    //Calc windspeed
-    //windspeedmph = get_wind_speed(); //This is calculated in the main loop on line 185
-
-    //Calc windgustmph
-    //Calc windgustdir
-    //These are calculated in the main loop
 
     //Calc windspdmph_avg2m
     float temp = 0;
@@ -415,13 +380,7 @@ void calcWeather()
     }
     temp /= 120.0;
     windspdmph_avg2m = temp;
-       
-    //Calc winddir_avg2m, Wind Direction
-    //You can't just take the average. Google "mean of circular quantities" for more info
-    //We will use the Mitsuta method because it doesn't require trig functions
-    //And because it sounds cool.
-    //Based on: http://abelian.org/vlf/bearings.html
-    //Based on: http://stackoverflow.com/questions/1813483/averaging-angles-again
+    
     long sum = winddiravg[0];
     int D = winddiravg[0];
     for(int i = 1 ; i < WIND_DIR_AVG_SIZE ; i++)
@@ -455,14 +414,6 @@ void calcWeather()
             windgustdir_10m = windgustdirection_10m[i];
         }
     }
-
-    //Total rainfall for the day is calculated within the interrupt
-    //Calculate amount of rainfall for the last 60 minutes
-//    rainin = 0;
-//    for(int i = 0 ; i < 60 ; i++)
-//      rainin += rainHour[i];
-//        Serial.print("rainin:");
-//        Serial.println(rainin);
 
     //Calc light level
     light_lvl = get_light_level();
@@ -729,7 +680,7 @@ String getDateTime()
 void printWeather()
 {
     calcWeather(); //Go calc all the various sensors
-    //soilData();
+    soilData();
     
     StaticJsonDocument<700> doc1;
     JsonObject object1 = doc1.to<JsonObject>();
@@ -783,7 +734,7 @@ void printWeather()
     delay(100);
     ShowSerialData();
     
-   if((sentdata == 1000) or (sentdata == 1)){                 //900 count because roughly the loop takes 4 s to run once. So for 1 hour the loop should run approx 900 times.
+   if((sentdata == 1000) or (sentdata == 1)){
 
     if (Serial2.available())
     Serial.write(Serial2.read());
@@ -822,7 +773,7 @@ void printWeather()
     String sendtoserver;
     serializeJson(doc, sendtoserver);
     delay(500);
-    Serial2.println("AT+HTTPPARA=\"URL\",\"http://soil-test.solidaridadasia.net/api/store-wind-data-by-mac-address\""); //Server address http://soil-test.solidaridadasia.net/api/store-wind-data
+    Serial2.println("AT+HTTPPARA=\"URL\",\"type in url"");
     delay(500);
     ShowSerialData();
     Serial2.println("AT+HTTPPARA=\"CONTENT\",\"application/json\"");
